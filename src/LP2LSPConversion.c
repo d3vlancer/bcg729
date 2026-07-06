@@ -100,7 +100,11 @@ int LP2LSPConversion(word16_t LPCoefficients[], word16_t LSPCoefficients[])
 
 			/* linear interpolation for better root accuracy */
 			/* xMean = xLow - (xHigh-xLow)* previousCx/(Cx-previousCx); */
-			xMean = (word16_t)SUB32(xLow, MULT16_32_Q15(SUB32(xHigh, xLow), DIV32(SSHL(SATURATE(previousCx, MAXINT17), 14), SHR(SUB32(Cx, previousCx), 1)))); /* Cx are in Q2.15 so we can shift them left 14 bits, the denominator is shifted righ by 1 so the division result is in Q15 */
+			if (previousCx == Cx) { // avoid possible division by 0: consider previousCx/(Cx-previousCx) to be MAXINT32 or MININT32 depending on previousCx sign
+				xMean = (word16_t)SUB32(xLow, MULT16_32_Q15(SUB32(xHigh, xLow), previousCx>0?MAXINT32:MININT32));
+			} else {
+				xMean = (word16_t)SUB32(xLow, MULT16_32_Q15(SUB32(xHigh, xLow), SSHL(DIV32(SSHL(SATURATE(previousCx, MAXINT17), 14), SUB32(Cx, previousCx)), 1))); /* Cx are in Q2.15 so we can shift them left 14 bits, the division result is in Q14 so we shift left it one to put it back to Q15 */
+			}
 
 			/* recompute previousCx with the new coefficients */
 			previousCx = ChebyshevPolynomial(xMean, polynomialCoefficients);
